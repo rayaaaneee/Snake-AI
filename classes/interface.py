@@ -20,20 +20,41 @@ class Interface():
 
     title = "SnakeGPT"
 
-    def __init__(self):
+    # blocs / s
+    speed = 15
+
+    def __init__(self, isAI=False):
         self.screen = pygame.display.set_mode(
             (Interface.screenSize,
              Interface.screenSize + Interface.gameHeightStartPos))
         pygame.display.set_caption(Interface.title)
+        self.programIcon = pygame.image.load(
+            "image/app_icon.png").convert_alpha()
+        pygame.display.set_icon(self.programIcon)
         pygame.init()
 
         self.cellSize = Interface.cellSize
         self.fontScore = pygame.font.Font(Interface.font, 20)
-        self.fontMaxScore = pygame.font.Font(Interface.font, 16)
+        self.fontMaxScore = pygame.font.Font(Interface.font, 17)
         self.crownImage = pygame.image.load("image/crown.png")
         self.crownImage = pygame.transform.scale(
-            self.crownImage, (30, 26)).convert_alpha()
+            self.crownImage, (30, 24)).convert_alpha()
         self.world = World(Interface.worldSize, self)
+        self.isAI = isAI
+
+    def updateDisplay(self):
+        self.screen.fill(Color.BACKGROUND.value)
+        pygame.draw.rect(self.screen, Color.TOP_BACKGROUND.value,
+                         (0, 0, self.screenSize, self.gameHeightStartPos))
+        pygame.draw.line(self.screen, Color.LINE.value,
+                         (0, self.gameHeightStartPos - Interface.lineWidth),
+                         (self.screenSize,
+                          self.gameHeightStartPos - Interface.lineWidth),
+                         Interface.lineWidth)
+        self.world.update()
+        self.setScore()
+        self.setMaxScore()
+        pygame.display.update()
 
     def setScore(self):
         score = self.world.snake.score
@@ -48,11 +69,11 @@ class Interface():
     def setMaxScore(self):
         maxScore = self.world.snake.maxScore
         text = self.fontMaxScore.render(
-            str(maxScore), True, (255, 255, 255))
+            str(maxScore), True, (254, 183, 60))
         self.screen.blit(self.crownImage, (
             3,
             3))
-        self.screen.blit(text, (self.crownImage.get_width() + 10, 10))
+        self.screen.blit(text, (self.crownImage.get_width() + 10, 8))
 
     def start(self):
         while True:
@@ -62,23 +83,21 @@ class Interface():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT and self.world.snake.direction != Direction.LEFT:
-                        self.world.snake.changeDirection(Direction.RIGHT)
-                    elif event.key == pygame.K_LEFT and self.world.snake.direction != Direction.RIGHT:
-                        self.world.snake.changeDirection(Direction.LEFT)
-                    elif event.key == pygame.K_UP and self.world.snake.direction != Direction.DOWN:
-                        self.world.snake.changeDirection(Direction.UP)
-                    elif event.key == pygame.K_DOWN and self.world.snake.direction != Direction.UP:
-                        self.world.snake.changeDirection(Direction.DOWN)
-            self.screen.fill(Color.BACKGROUND)
-            pygame.draw.line(self.screen, Color.LINE,
-                             (0, self.gameHeightStartPos - Interface.lineWidth),
-                             (self.screenSize,
-                              self.gameHeightStartPos - Interface.lineWidth),
-                             Interface.lineWidth)
-            self.world.update()
-            self.setScore()
-            self.setMaxScore()
-            pygame.display.update()
-            clock.tick(15)
+                if not self.isAI:
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_RIGHT and self.world.snake.direction != Direction.LEFT.value:
+                            self.world.snake.changeDirection(
+                                Direction.RIGHT.value)
+                        elif event.key == pygame.K_LEFT and self.world.snake.direction != Direction.RIGHT.value:
+                            self.world.snake.changeDirection(
+                                Direction.LEFT.value)
+                        elif event.key == pygame.K_UP and self.world.snake.direction != Direction.DOWN.value:
+                            self.world.snake.changeDirection(
+                                Direction.UP.value)
+                        elif event.key == pygame.K_DOWN and self.world.snake.direction != Direction.UP.value:
+                            self.world.snake.changeDirection(
+                                Direction.DOWN.value)
+                else:
+                    pass
+            self.updateDisplay()
+            clock.tick(Interface.speed)

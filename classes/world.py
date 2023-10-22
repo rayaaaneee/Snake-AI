@@ -37,7 +37,7 @@ class World:
     def drawApple(self):
         pygame.draw.rect(
             self.interface.screen,
-            Color.APPLE,
+            Color.APPLE.value,
             ((self.apple.position[0] * self.interface.cellSize),
              (self.apple.position[1] * self.interface.cellSize) +
              self.interface.gameHeightStartPos,
@@ -46,9 +46,16 @@ class World:
 
     def drawSnake(self):
         for position in self.snake.positions:
+
+            color = None
+            if position == self.snake.positions[0]:
+                color = Color.SNAKE_HEAD.value
+            else:
+                color = Color.SNAKE_BODY.value
+
             pygame.draw.rect(
                 self.interface.screen,
-                Color.SNAKE,
+                color,
                 (
                     (position[0] * self.interface.cellSize),
                     (position[1] * self.interface.cellSize) +

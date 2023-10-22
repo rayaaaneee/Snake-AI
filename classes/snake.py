@@ -14,7 +14,7 @@ class Snake:
 
     def init(self):
         self.length = Snake.initialLength
-        self.direction = Direction.RIGHT
+        self.direction = Direction.RIGHT.value
         self.score = 0
         self.positions = []
         for i in range(Snake.initialLength):
@@ -22,13 +22,13 @@ class Snake:
 
     def advance(self):
         head = self.positions[0]
-        if self.direction == Direction.RIGHT:
+        if self.direction == Direction.RIGHT.value:
             newHead = (head[0] + 1, head[1])
-        elif self.direction == Direction.LEFT:
+        elif self.direction == Direction.LEFT.value:
             newHead = (head[0] - 1, head[1])
-        elif self.direction == Direction.UP:
+        elif self.direction == Direction.UP.value:
             newHead = (head[0], head[1] - 1)
-        elif self.direction == Direction.DOWN:
+        elif self.direction == Direction.DOWN.value:
             newHead = (head[0], head[1] + 1)
         self.positions.insert(0, newHead)
 
