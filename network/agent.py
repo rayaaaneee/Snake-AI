@@ -15,7 +15,7 @@ class Agent(nn.Module):
         return x
 
 
-# Define the input size, hidden size, and output size of the neural network
+""" # Define the input size, hidden size, and output size of the neural network
 input_size = 16
 hidden_size = 32
 output_size = 4
@@ -58,3 +58,4 @@ for i in range(num_epochs):
     # Check if the game is over
     if done:
         break
+ """

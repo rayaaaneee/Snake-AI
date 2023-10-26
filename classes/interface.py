@@ -39,8 +39,8 @@ class Interface():
         self.crownImage = pygame.image.load("image/crown.png")
         self.crownImage = pygame.transform.scale(
             self.crownImage, (30, 24)).convert_alpha()
-        self.world = World(Interface.worldSize, self)
         self.isAI = isAI
+        self.world = World(Interface.worldSize, self)
 
     def updateDisplay(self):
         self.screen.fill(Color.BACKGROUND.value)

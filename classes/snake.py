@@ -1,4 +1,5 @@
 from classes.direction import Direction
+import json
 
 
 class Snake:
@@ -9,7 +10,11 @@ class Snake:
 
     def __init__(self, world):
         self.world = world
-        self.maxScore = 0
+        isAI = self.world.interface.isAI
+        json_file = "ai" if isAI else "human"
+        self.json_path = "data/" + json_file + ".json"
+        self.json = json.load(open(self.json_path, "r"))
+        self.maxScore = self.json["maxScore"]
         self.init()
 
     def init(self):
@@ -47,5 +52,14 @@ class Snake:
     def eatApple(self):
         self.length += 1
         self.score = self.length - Snake.initialLength
-        self.maxScore = max(self.maxScore, self.score)
+
+        if (self.score > self.maxScore):
+            self.maxScore = self.score
+            self.writeMaxScore()
+
         self.world.apple.setNewPosition()
+
+    def writeMaxScore(self):
+        self.json["maxScore"] = self.maxScore
+        with open(self.json_path, "w") as outfile:
+            json.dump(self.json, outfile, indent=4)
