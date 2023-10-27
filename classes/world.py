@@ -1,66 +1,92 @@
 from classes.snake import Snake
 from classes.apple import Apple
-from classes.color import Color
+from classes.enums.color import Color
+from classes.enums.reward import Reward
+
+from network.agent import Agent
+from network.global_trainer import GlobalTrainer
 import pygame
+import json
 
 
 class World:
 
-    def __init__(self, size, interface):
-        self.size = size
-        self.interface = interface
+    worldSize = 20
+
+    def __init__(self, isAi, isTraining):
+
+        self.isAI = isAi
+        self.isTraining = isTraining
+
+        jsonFile = "ai" if self.isAI else "human"
+        self._jsonPath = "data/" + jsonFile + ".json"
+        self._json = json.load(open(self._jsonPath, "r"))
+        self.maxScore = self._json["maxScore"]
+
+        self.score = 0
+
+        self.size = World.worldSize
+
         self.snake = Snake(self)
         self.apple = Apple(self.snake, self)
 
-    def update(self):
+        if self.isAI:
+
+            self.reward = 0
+            self.agent = Agent()
+
+            if self.isTraining:
+                self.trainer = GlobalTrainer(self, self.agent)
+
+    def update(self) -> (int, bool, int):
+
+        reward = Reward.MOVE.value
+
         self.snake.advance()
 
-        self.checkCollision()
+        isDead = self.isCollision()
 
-        self.drawApple()
-        self.drawSnake()
+        if self.snake.isEating():
 
-        if self.snake.positions[0] == self.apple.position:
-            self.snake.eatApple()
+            self.snake._eatApple()
+            self.score = self.snake.length - Snake.initialLength
 
-    def checkCollision(self):
-        head = self.snake.positions[0]
+            if (self.score > self.maxScore):
+
+                self.maxScore = self.score
+                self._writeMaxScore()
+
+            reward = Reward.EAT.value
+
+        score = self.score
+
+        if isDead:
+            self._restart()
+            reward = Reward.DIE.value
+
+        return reward, isDead, score
+
+    def isCollision(self, pt=None) -> bool:
+        head = self.snake.getHead()
+        if pt is not None:
+            head = pt
+        isDead = False
         if (head[0] < 0) or (head[0] > self.size - 1) or (head[1] < 0) or (head[1] > self.size - 1):
-            self.restart()
+            isDead = True
         elif head in self.snake.positions[1:]:
-            self.restart()
+            isDead = True
 
-    def restart(self):
+        return isDead
+
+    def _writeMaxScore(self) -> None:
+        self._json["maxScore"] = self.maxScore
+        with open(self._jsonPath, "w") as outfile:
+            json.dump(self._json, outfile, indent=4)
+
+    def _restart(self) -> None:
+        self.score = 0
         self.snake.init()
         self.apple.setNewPosition()
 
-    def drawApple(self):
-        pygame.draw.rect(
-            self.interface.screen,
-            Color.APPLE.value,
-            ((self.apple.position[0] * self.interface.cellSize),
-             (self.apple.position[1] * self.interface.cellSize) +
-             self.interface.gameHeightStartPos,
-             self.interface.cellSize, self.interface.cellSize)
-        )
-
-    def drawSnake(self):
-        for position in self.snake.positions:
-
-            color = None
-            if position == self.snake.positions[0]:
-                color = Color.SNAKE_HEAD.value
-            else:
-                color = Color.SNAKE_BODY.value
-
-            pygame.draw.rect(
-                self.interface.screen,
-                color,
-                (
-                    (position[0] * self.interface.cellSize),
-                    (position[1] * self.interface.cellSize) +
-                    self.interface.gameHeightStartPos,
-                    self.interface.cellSize,
-                    self.interface.cellSize
-                )
-            )
+    def updateReward(self, reward) -> None:
+        self.reward += reward

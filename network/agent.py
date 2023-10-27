@@ -2,60 +2,136 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from collections import deque
+import numpy as np
+import random
 
-class Agent(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(Agent, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, output_size)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+from classes.enums.direction import Direction
+from network.model import LinearQNet, QTrainer
 
 
-""" # Define the input size, hidden size, and output size of the neural network
-input_size = 16
-hidden_size = 32
-output_size = 4
+class Agent():
 
-# Create an instance of the SnakeAI class
-snake_ai = Agent(input_size, hidden_size, output_size)
+    MAX_MEMORY = 100_000
+    BATCH_SIZE = 1000
+    LEARNING_RATE = 0.001  # Alpha
 
-# Define the loss function and optimizer
-criterion = nn.MSELoss()
-optimizer = optim.Adam(snake_ai.parameters(), lr=0.001)
+    def __init__(self):
+        self.nbGames = 0
+        self.epsilon = 0  # Taux de random
+        self.gamma = 0.9  # Taux de réduction
+        # Lorsque la mémoire est pleine, on supprime les anciennes expériences
+        self.memory = deque(maxlen=Agent.MAX_MEMORY)
 
-# Train the neural network
-for i in range(num_epochs):
-    # Get the current state of the game
-    state = get_state()
+        # Il y a 11 paramètres en entrée et 3 paramètres en sortie, la valeur
+        # 256 est arbitraire et dépend du besoin
+        self.model = LinearQNet(11, 256, 3)
+        self.trainer = QTrainer(self.model, Agent.LEARNING_RATE, self.gamma)
 
-    # Convert the state to a tensor
-    state_tensor = torch.tensor(state, dtype=torch.float32)
+    @staticmethod
+    def interpretDirection(self, action) -> int:
+        orderClockWise = [Direction.RIGHT.value, Direction.DOWN.value,
+                          Direction.LEFT.value, Direction.UP.value]
+        index = orderClockWise.index(self._world.snake.direction)
 
-    # Get the predicted Q-values for each action
-    def take_action(action):
-        # Perform the action and get the new state and reward
-        # ...
-        return new_state, reward, done
+        if np.array_equal(action, [1, 0, 0]):
+            # On avance tout droit
+            pass
+        elif np.array_equal(action, [0, 1, 0]):
+            # On tourne à droite (peu importe la direction)
+            index = (index + 1) % 4
+        elif np.array_equal(action, [0, 0, 1]):
+            # On tourne à gauche (peu importe la direction)
+            index = (index - 1) % 4
+        else:
+            # Tableau non conforme, on pourrait quitter sur une erreur
+            # mais on fera plutot du random
+            index = random.randint(0, (len(orderClockWise) - 1))
+        return orderClockWise[index]
 
-    # Get the target Q-values for each action
-    target_q_values = q_values.clone().detach()
-    target_q_values[action] = reward + discount_factor * \
-        torch.max(snake_ai(new_state_tensor))
+    def getState(self, world) -> []:
 
-    # Calculate the loss and update the weights
-    loss = criterion(q_values, target_q_values)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        pointLeft = world.snake.getPosition(Direction.LEFT.value)
+        pointRight = world.snake.getPosition(Direction.RIGHT.value)
+        pointUp = world.snake.getPosition(Direction.UP.value)
+        pointDown = world.snake.getPosition(Direction.DOWN.value)
 
-    # Update the current state
-    state = new_state
+        isDirectionLeft = world.snake.direction == Direction.LEFT.value
+        isDirectionRight = world.snake.direction == Direction.RIGHT.value
+        isDirectionUp = world.snake.direction == Direction.UP.value
+        isDirectionDown = world.snake.direction == Direction.DOWN.value
 
-    # Check if the game is over
-    if done:
-        break
- """
+        state = [
+            # Danger straight -> Danger droit
+            (isDirectionLeft and world.isCollision(pointLeft)) or
+            (isDirectionRight and world.isCollision(pointRight)) or
+            (isDirectionUp and world.isCollision(pointUp)) or
+            (isDirectionDown and world.isCollision(pointDown)),
+
+            # Danger à droite
+            (isDirectionLeft and world.isCollision(pointDown)) or
+            (isDirectionRight and world.isCollision(pointUp)) or
+            (isDirectionUp and world.isCollision(pointRight)) or
+            (isDirectionDown and world.isCollision(pointLeft)),
+
+            # Danger à gauche
+            (isDirectionLeft and world.isCollision(pointUp)) or
+            (isDirectionRight and world.isCollision(pointDown)) or
+            (isDirectionUp and world.isCollision(pointLeft)) or
+            (isDirectionDown and world.isCollision(pointRight)),
+
+            # Direction
+            isDirectionLeft,
+            isDirectionRight,
+            isDirectionUp,
+            isDirectionDown,
+
+            # Emplacement de la pomme
+            world.apple.position[0] < world.snake.getHead()[
+                0],  # Pomme à gauche
+            world.apple.position[0] > world.snake.getHead()[
+                0],  # Pomme à droite
+            world.apple.position[1] < world.snake.getHead()[
+                1],  # Pomme en haut
+            world.apple.position[1] > world.snake.getHead()[1]   # Pomme en bas
+        ]
+        return np.array(state, dtype=int)
+
+    def remember(self, state, action, reward, nextState, currentGameOver):
+        self.memory.append((state, action, reward, nextState, currentGameOver))
+
+    def trainLongMemory(self):
+        if len(self.memory) > self.BATCH_SIZE:
+            miniSample = random.sample(self.memory, self.BATCH_SIZE)
+        else:
+            miniSample = self.memory
+
+        states, actions, rewards, nextStates, currentGameOvers = zip(
+            *miniSample)
+        self.trainer.trainStep(states, actions, rewards,
+                               nextStates, currentGameOvers)
+        # for state, action, reward, nextState, currentGameOver in miniSample:
+        #    self.trainer.trainStep(state, action, reward, nextState, currentGameOver)
+
+    def trainShortMemory(self, state, action, reward, nextState, currentGameOver):
+        self.trainer.trainStep(state, action, reward,
+                               nextState, currentGameOver)
+
+    def getAction(self, state) -> [int, int, int]:
+        # Mouvements aléatoires : exploration/ Prédiction : exploitation
+        # 80 et 200 sont des valeurs arbitraires
+        self.epsilon = 80 - self.nbGames  # Plus on joue moins on explore
+
+        finalMove = [0, 0, 0]
+        if random.randint(0, 200) < self.epsilon:
+            # On explore
+            move = random.randint(0, len(finalMove) - 1)
+            finalMove[move] = 1
+        else:
+            state0 = torch.tensor(state, dtype=torch.float)
+            # Appelera la fonction forward de LinearQNet
+            prediction = self.model(state0)
+            move = torch.argmax(prediction).item()
+            finalMove[move] = 1
+
+        return finalMove
