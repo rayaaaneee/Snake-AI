@@ -1,5 +1,7 @@
 # FILEPATH: ./main.py
 
+! This project isn't done but ongoing. !
+
 Ce fichier contient le code pour lancer le jeu en mode humain.
 
 Pour lancer le jeu en mode humain, exécutez ce fichier en utilisant Python :
